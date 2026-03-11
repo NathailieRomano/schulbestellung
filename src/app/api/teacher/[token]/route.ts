@@ -44,10 +44,12 @@ export async function GET(
     items = orderItems || []
   }
 
-  // Get settings
+  // Get settings (only public ones, NOT admin sessions)
   const { data: settings } = await supabase
     .from('bestell_settings')
     .select('*')
+    .not('key', 'like', 'admin_session_%')
+    .not('key', 'eq', 'admin_password')
 
   const settingsMap: Record<string, string> = {}
   settings?.forEach((s: { key: string; value: string }) => {

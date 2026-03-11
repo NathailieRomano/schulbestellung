@@ -39,7 +39,19 @@ export default function OrderPage() {
   const [deadline, setDeadline] = useState<string>('')
   const [showCart, setShowCart] = useState(false)
 
+  const [hasUnsaved, setHasUnsaved] = useState(false)
   const catalog = useMemo(() => getGroupedCatalog(), [])
+
+  // Warn before closing tab with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsaved) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsaved])
 
   useEffect(() => {
     async function loadData() {
@@ -92,6 +104,7 @@ export default function OrderPage() {
     })
     setSaved(false)
     setSubmitted(false)
+    setHasUnsaved(true)
   }, [])
 
   const setQuantity = useCallback((articleNumber: string, qty: number) => {
@@ -106,6 +119,7 @@ export default function OrderPage() {
     })
     setSaved(false)
     setSubmitted(false)
+    setHasUnsaved(true)
   }, [])
 
   const cartItems = useMemo(() => {
@@ -151,12 +165,15 @@ export default function OrderPage() {
         }),
       })
       if (res.ok) {
+        setHasUnsaved(false)
         if (submit) {
           setSubmitted(true)
           setOrderStatus('submitted')
         } else {
           setSaved(true)
         }
+      } else {
+        alert('Speichern fehlgeschlagen. Bitte nochmals versuchen.')
       }
     } catch {
       alert('Fehler beim Speichern')
@@ -308,7 +325,7 @@ export default function OrderPage() {
           <h2 className="font-bold text-gray-700 mb-2">📝 Bemerkungen</h2>
           <textarea
             value={note}
-            onChange={e => { setNote(e.target.value); setSaved(false); setSubmitted(false) }}
+            onChange={e => { setNote(e.target.value); setSaved(false); setSubmitted(false); setHasUnsaved(true) }}
             placeholder="Spezielle Wünsche, Anmerkungen..."
             className="w-full px-3 py-2 rounded border border-gray-300 focus:border-blue-500 outline-none text-gray-800"
             rows={3}
@@ -374,7 +391,10 @@ export default function OrderPage() {
                       <div className="flex items-center gap-2 ml-2">
                         <span className="text-sm font-bold text-blue-600">×{item.quantity}</span>
                         <button
-                          onClick={() => setQuantity(item.article_number, 0)}
+                          onClick={() => {
+                            setQuantity(item.article_number, 0)
+                            setStockQuantity(item.article_number, 0)
+                          }}
                           className="text-red-400 hover:text-red-600 text-sm"
                         >
                           ✕
