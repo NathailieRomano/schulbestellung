@@ -382,14 +382,21 @@ export default function OrderPage() {
                 <p className="text-gray-500">Noch keine Artikel ausgewählt.</p>
               ) : (
                 <div className="space-y-3">
-                  {cartItems.map(item => (
-                    <div key={item.article_number} className="flex justify-between items-start border-b pb-2">
+                  {cartItems.map((item, idx) => (
+                    <div key={`${item.article_number}-${idx}`} className="flex justify-between items-start border-b pb-2">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-800">{item.article_name}</p>
                         <p className="text-xs text-gray-500">{item.article_number}</p>
+                        <div className="flex gap-3 mt-0.5">
+                          {item.quantity_personal > 0 && (
+                            <span className="text-xs text-blue-600 font-medium">Pers: {item.quantity_personal}</span>
+                          )}
+                          {item.quantity_stock > 0 && (
+                            <span className="text-xs text-green-600 font-medium">Lager: {item.quantity_stock}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 ml-2">
-                        <span className="text-sm font-bold text-blue-600">×{item.quantity}</span>
                         <button
                           onClick={() => {
                             setQuantity(item.article_number, 0)
