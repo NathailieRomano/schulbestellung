@@ -547,6 +547,14 @@ function ArticleRow({
   return (
     <div className={`py-1.5 px-2 rounded ${hasAny ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
       <div className="flex items-center gap-2">
+        {article.thumbnail && (
+          <img
+            src={`https://shop.ingold-biwa.ch${article.thumbnail}`}
+            alt=""
+            className="w-10 h-10 object-contain rounded shrink-0"
+            loading="lazy"
+          />
+        )}
         <div className="flex-1 min-w-0">
           <a
             href={`https://shop.ingold-biwa.ch${article.url}`}
@@ -559,6 +567,7 @@ function ArticleRow({
           </a>
           <p className="text-xs text-gray-400">
             {article.articleNumber}
+            {article.unit && ` • ${article.unit}`}
             {subtitle && ` • ${subtitle}`}
           </p>
         </div>

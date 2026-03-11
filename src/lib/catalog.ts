@@ -6,6 +6,8 @@ export interface Article {
   url: string
   urlId?: string
   realArticleNumbers?: string[]
+  unit?: string
+  thumbnail?: string
 }
 
 export interface Subcategory {
@@ -119,6 +121,8 @@ export function getGroupedCatalog(): DisplayGroup[] {
           url: a.url,
           urlId: (a as Record<string, unknown>).urlId as string | undefined,
           realArticleNumbers: (a as Record<string, unknown>).realArticleNumbers as string[] | undefined,
+          unit: (a as Record<string, unknown>).unit as string | undefined,
+          thumbnail: (a as Record<string, unknown>).thumbnail as string | undefined,
         })),
       })
     }
