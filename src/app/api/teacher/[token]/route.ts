@@ -50,7 +50,7 @@ export async function GET(
     .from('bestell_settings')
     .select('*')
     .not('key', 'like', 'admin_session_%')
-    .not('key', 'eq', 'admin_password')
+    .not('key', 'like', 'admin_password%')
 
   const settingsMap: Record<string, string> = {}
   settings?.forEach((s: { key: string; value: string }) => {
