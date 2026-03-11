@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       category: string
       subcategory: string
       quantity: number
+      quantity_personal?: number
+      quantity_stock?: number
       note?: string
     }) => ({
       order_id: order!.id,
@@ -58,7 +60,9 @@ export async function POST(request: Request) {
       article_name: item.article_name,
       category: item.category,
       subcategory: item.subcategory,
-      quantity: item.quantity,
+      quantity: (item.quantity_personal || 0) + (item.quantity_stock || 0) || item.quantity,
+      quantity_personal: item.quantity_personal ?? item.quantity ?? 0,
+      quantity_stock: item.quantity_stock ?? 0,
       note: item.note || null,
     }))
 

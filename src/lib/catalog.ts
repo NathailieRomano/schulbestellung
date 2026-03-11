@@ -157,3 +157,19 @@ export function searchCatalog(query: string): { group: string; subcategory: stri
 
   return results.slice(0, 50)
 }
+
+// Lookup map: articleNumber → shop URL
+let _urlMap: Record<string, string> | null = null
+export function getArticleUrlMap(): Record<string, string> {
+  if (_urlMap) return _urlMap
+  _urlMap = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const cat of (rawCatalog as any).categories) {
+    for (const sub of cat.subcategories) {
+      for (const a of sub.articles) {
+        _urlMap[a.articleNumber] = a.url
+      }
+    }
+  }
+  return _urlMap
+}

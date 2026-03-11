@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { getArticleUrlMap } from '@/lib/catalog'
 
 interface TeacherWithOrder {
   id: string
@@ -22,10 +23,20 @@ interface OrderItem {
   category: string
   subcategory: string
   quantity: number
+  quantity_personal: number
+  quantity_stock: number
   note: string | null
   teacher_name: string
   campus: string
   order_status: string
+}
+
+interface OrderedArticle {
+  article_number: string
+  campus: string
+  ordered_quantity: number
+  ordered_at: string | null
+  notes: string | null
 }
 
 type View = 'dashboard' | 'detail' | 'all-orders' | 'export'
@@ -43,6 +54,9 @@ export default function AdminPage() {
   const [allItems, setAllItems] = useState<OrderItem[]>([])
   const [campusFilter, setCampusFilter] = useState<string>('all')
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+  const [orderedArticles, setOrderedArticles] = useState<Record<string, OrderedArticle>>({})
+  const [showOrdered, setShowOrdered] = useState<'all' | 'open' | 'done'>('all')
+  const articleUrlMap = useMemo(() => getArticleUrlMap(), [])
 
   const fetchDashboard = useCallback(async (token: string) => {
     setLoading(true)
@@ -148,6 +162,41 @@ export default function AdminPage() {
     if (res.ok) {
       const data = await res.json()
       setAllItems(data.items || [])
+      // Load ordered status
+      const orderedMap: Record<string, OrderedArticle> = {}
+      for (const oa of data.orderedArticles || []) {
+        orderedMap[`${oa.article_number}_${oa.campus}`] = oa
+      }
+      setOrderedArticles(orderedMap)
+    }
+  }
+
+  const toggleOrdered = async (articleNumber: string, campus: string, quantity: number) => {
+    if (!adminToken) return
+    const key = `${articleNumber}_${campus}`
+    const isOrdered = !!orderedArticles[key]
+    
+    const res = await fetch('/api/admin/ordered', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization: adminToken },
+      body: JSON.stringify({
+        article_number: articleNumber,
+        campus,
+        ordered: !isOrdered,
+        quantity,
+      }),
+    })
+    if (res.ok) {
+      if (isOrdered) {
+        const next = { ...orderedArticles }
+        delete next[key]
+        setOrderedArticles(next)
+      } else {
+        setOrderedArticles(prev => ({
+          ...prev,
+          [key]: { article_number: articleNumber, campus, ordered_quantity: quantity, ordered_at: new Date().toISOString(), notes: null },
+        }))
+      }
     }
   }
 
@@ -282,8 +331,15 @@ export default function AdminPage() {
                 onClick={generateAllTokens}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
               >
-                🔑 Alle Token generieren
+                Alle Token generieren
               </button>
+              <a
+                href="/Anleitung_Sammelbestellung_2026.pdf"
+                download
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 text-sm font-medium inline-block"
+              >
+                PDF Anleitung herunterladen
+              </a>
               <select
                 value={campusFilter}
                 onChange={e => setCampusFilter(e.target.value)}
@@ -335,7 +391,27 @@ export default function AdminPage() {
                                 onClick={() => viewTeacherOrder(t)}
                                 className="text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded text-blue-700"
                               >
-                                👁️ Details
+                                Details
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const link = `${window.location.origin}/b/${t.token}`
+                                  const subject = encodeURIComponent('Sammelbestellung 2026 - Dein Bestelllink')
+                                  const body = encodeURIComponent(
+                                    `Liebe/r ${t.name.split(' ')[0]}\n\n` +
+                                    `Hier ist dein persoenlicher Link fuer die Sammelbestellung 2026 (ingold-biwa):\n\n` +
+                                    `${link}\n\n` +
+                                    `Standort: ${t.campus === 'schoenau' ? 'Schoenau' : 'Zulg'}\n` +
+                                    `Bestellfrist: 3. Mai 2026\n\n` +
+                                    `Im Anhang findest du eine kurze Anleitung als PDF.\n\n` +
+                                    `Bei Fragen melde dich bei mir.\n\n` +
+                                    `Herzliche Gruesse\nNathanael Romano`
+                                  )
+                                  window.open(`mailto:${t.name}?subject=${subject}&body=${body}`, '_self')
+                                }}
+                                className="text-xs bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-green-700"
+                              >
+                                Mail
                               </button>
                             </>
                           ) : (
@@ -381,7 +457,8 @@ export default function AdminPage() {
                       <th className="px-3 py-2">Artikelnr.</th>
                       <th className="px-3 py-2">Artikel</th>
                       <th className="px-3 py-2">Kategorie</th>
-                      <th className="px-3 py-2">Menge</th>
+                      <th className="px-3 py-2 text-blue-600">Persönlich</th>
+                      <th className="px-3 py-2 text-green-600">Lager</th>
                       <th className="px-3 py-2">Bemerkung</th>
                     </tr>
                   </thead>
@@ -391,7 +468,8 @@ export default function AdminPage() {
                         <td className="px-3 py-2 text-gray-500">{item.article_number}</td>
                         <td className="px-3 py-2 text-gray-800">{item.article_name}</td>
                         <td className="px-3 py-2 text-gray-500">{item.category}</td>
-                        <td className="px-3 py-2 font-medium text-gray-800">{item.quantity}</td>
+                        <td className="px-3 py-2 font-medium text-blue-600">{item.quantity_personal ?? item.quantity ?? 0}</td>
+                        <td className="px-3 py-2 font-medium text-green-600">{item.quantity_stock ?? 0}</td>
                         <td className="px-3 py-2 text-gray-500">{item.note || ''}</td>
                       </tr>
                     ))}
@@ -422,36 +500,101 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-100 text-left text-gray-600">
-                        <th className="px-3 py-2">Standort</th>
-                        <th className="px-3 py-2">Lehrperson</th>
-                        <th className="px-3 py-2">Artikelnr.</th>
-                        <th className="px-3 py-2">Artikel</th>
-                        <th className="px-3 py-2">Menge</th>
-                        <th className="px-3 py-2">Bemerkung</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allItems
-                        .filter(item => campusFilter === 'all' || item.campus === campusFilter)
-                        .map((item, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-3 py-2 text-gray-500">
-                              {item.campus === 'schoenau' ? 'Schönau' : 'Zulg'}
-                            </td>
-                            <td className="px-3 py-2 text-gray-800">{item.teacher_name}</td>
-                            <td className="px-3 py-2 text-gray-500">{item.article_number}</td>
-                            <td className="px-3 py-2 text-gray-800">{item.article_name}</td>
-                            <td className="px-3 py-2 font-medium">{item.quantity}</td>
-                            <td className="px-3 py-2 text-gray-500">{item.note || ''}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+                {/* Filter: Status */}
+                <div className="mb-4 flex gap-2 items-center">
+                  <span className="text-sm text-gray-500">Status:</span>
+                  {(['all', 'open', 'done'] as const).map(f => (
+                    <button key={f} onClick={() => setShowOrdered(f)}
+                      className={`px-3 py-1 rounded text-sm ${showOrdered === f ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                      {f === 'all' ? 'Alle' : f === 'open' ? '⬜ Offen' : '✅ Bestellt'}
+                    </button>
+                  ))}
                 </div>
+
+                {/* Aggregierte Bestellübersicht */}
+                {(() => {
+                  const filtered = allItems.filter(item => campusFilter === 'all' || item.campus === campusFilter)
+                  const agg: Record<string, { article_number: string; article_name: string; category: string; campus: string; totalPersonal: number; maxStock: number; teachers: string[] }> = {}
+                  for (const item of filtered) {
+                    if (item.article_number === 'NOTE') continue
+                    const key = `${item.article_number}_${item.campus}`
+                    if (!agg[key]) {
+                      agg[key] = { article_number: item.article_number, article_name: item.article_name, category: item.category, campus: item.campus, totalPersonal: 0, maxStock: 0, teachers: [] }
+                    }
+                    agg[key].totalPersonal += (item.quantity_personal ?? item.quantity ?? 0)
+                    agg[key].maxStock = Math.max(agg[key].maxStock, item.quantity_stock ?? 0)
+                    agg[key].teachers.push(`${item.teacher_name} (P:${item.quantity_personal ?? item.quantity ?? 0}${item.quantity_stock ? ` L:${item.quantity_stock}` : ''})`)
+                  }
+                  let rows = Object.values(agg).sort((a, b) => a.category.localeCompare(b.category) || a.article_name.localeCompare(b.article_name))
+                  
+                  // Filter by ordered status
+                  if (showOrdered === 'open') {
+                    rows = rows.filter(r => !orderedArticles[`${r.article_number}_${r.campus}`])
+                  } else if (showOrdered === 'done') {
+                    rows = rows.filter(r => !!orderedArticles[`${r.article_number}_${r.campus}`])
+                  }
+
+                  const totalRows = Object.values(agg).length
+                  const doneRows = Object.values(agg).filter(r => !!orderedArticles[`${r.article_number}_${r.campus}`]).length
+
+                  return (
+                    <>
+                      <div className="mb-3 bg-white rounded-lg shadow p-3 flex items-center gap-4">
+                        <div className="flex-1 bg-gray-200 rounded-full h-3">
+                          <div className="bg-green-500 rounded-full h-3 transition-all" style={{ width: `${totalRows > 0 ? (doneRows / totalRows * 100) : 0}%` }} />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{doneRows} / {totalRows} Artikel bestellt</span>
+                      </div>
+                      <div className="bg-white rounded-lg shadow overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-100 text-left text-gray-600">
+                              <th className="px-2 py-2 w-8">✓</th>
+                              <th className="px-3 py-2">Standort</th>
+                              <th className="px-3 py-2">Artikelnr.</th>
+                              <th className="px-3 py-2">Artikel</th>
+                              <th className="px-3 py-2">Kategorie</th>
+                              <th className="px-3 py-2 text-blue-600">∑ Pers.</th>
+                              <th className="px-3 py-2 text-green-600">Max Lager</th>
+                              <th className="px-3 py-2 font-bold">Bestellen</th>
+                              <th className="px-3 py-2">Bestellt von</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, i) => {
+                              const key = `${row.article_number}_${row.campus}`
+                              const isOrdered = !!orderedArticles[key]
+                              const total = row.totalPersonal + row.maxStock
+                              return (
+                                <tr key={i} className={`border-t ${isOrdered ? 'bg-green-50 opacity-60' : 'hover:bg-gray-50'}`}>
+                                  <td className="px-2 py-2">
+                                    <input type="checkbox" checked={isOrdered}
+                                      onChange={() => toggleOrdered(row.article_number, row.campus, total)}
+                                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer" />
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-500">{row.campus === 'schoenau' ? 'Schönau' : 'Zulg'}</td>
+                                  <td className="px-3 py-2 text-gray-500">{row.article_number}</td>
+                                  <td className="px-3 py-2">
+                                    <a href={`https://shop.ingold-biwa.ch${articleUrlMap[row.article_number] || `/de/suche.htm?q=${row.article_number}`}`}
+                                      target="_blank" rel="noopener noreferrer"
+                                      className={`hover:text-blue-600 hover:underline ${isOrdered ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                      {row.article_name} ↗
+                                    </a>
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-500 text-xs">{row.category}</td>
+                                  <td className="px-3 py-2 text-blue-600 font-medium">{row.totalPersonal}</td>
+                                  <td className="px-3 py-2 text-green-600 font-medium">{row.maxStock}</td>
+                                  <td className="px-3 py-2 font-bold text-gray-900 text-lg">{total}</td>
+                                  <td className="px-3 py-2 text-gray-400 text-xs max-w-xs truncate" title={row.teachers.join(', ')}>{row.teachers.join(', ')}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )
+                })()}
               </>
             )}
             {allItems.length === 0 && (

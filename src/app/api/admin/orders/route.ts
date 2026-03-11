@@ -71,5 +71,10 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ items: allItems })
+  // Also load ordered articles status
+  const { data: orderedArticles } = await supabase
+    .from('bestell_ordered_articles')
+    .select('*')
+
+  return NextResponse.json({ items: allItems, orderedArticles: orderedArticles || [] })
 }

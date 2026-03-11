@@ -27,6 +27,7 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [stockQuantities, setStockQuantities] = useState<Record<string, number>>({})
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -56,15 +57,20 @@ export default function OrderPage() {
 
         // Load existing items
         const existingQuantities: Record<string, number> = {}
+        const existingStockQuantities: Record<string, number> = {}
         let existingNote = ''
         for (const item of data.items || []) {
           if (item.article_number === 'NOTE') {
             existingNote = item.note || ''
           } else {
-            existingQuantities[item.article_number] = item.quantity
+            existingQuantities[item.article_number] = item.quantity_personal ?? item.quantity ?? 0
+            if (item.quantity_stock > 0) {
+              existingStockQuantities[item.article_number] = item.quantity_stock
+            }
           }
         }
         setQuantities(existingQuantities)
+        setStockQuantities(existingStockQuantities)
         setNote(existingNote)
       } catch {
         setError('Fehler beim Laden.')
@@ -73,6 +79,20 @@ export default function OrderPage() {
     }
     loadData()
   }, [token])
+
+  const setStockQuantity = useCallback((articleNumber: string, qty: number) => {
+    setStockQuantities(prev => {
+      const next = { ...prev }
+      if (qty <= 0) {
+        delete next[articleNumber]
+      } else {
+        next[articleNumber] = qty
+      }
+      return next
+    })
+    setSaved(false)
+    setSubmitted(false)
+  }, [])
 
   const setQuantity = useCallback((articleNumber: string, qty: number) => {
     setQuantities(prev => {
@@ -89,25 +109,28 @@ export default function OrderPage() {
   }, [])
 
   const cartItems = useMemo(() => {
-    const items: OrderItemData[] = []
+    const items: (OrderItemData & { quantity_personal: number; quantity_stock: number })[] = []
     for (const group of catalog) {
       for (const sub of group.subcategories) {
         for (const article of sub.articles) {
-          const qty = quantities[article.articleNumber]
-          if (qty && qty > 0) {
+          const qtyPersonal = quantities[article.articleNumber] || 0
+          const qtyStock = stockQuantities[article.articleNumber] || 0
+          if (qtyPersonal > 0 || qtyStock > 0) {
             items.push({
               article_number: article.articleNumber,
               article_name: article.name,
               category: group.name,
               subcategory: sub.name,
-              quantity: qty,
+              quantity: qtyPersonal + qtyStock,
+              quantity_personal: qtyPersonal,
+              quantity_stock: qtyStock,
             })
           }
         }
       }
     }
     return items
-  }, [quantities, catalog])
+  }, [quantities, stockQuantities, catalog])
 
   const searchResults = useMemo(() => {
     if (searchQuery.length < 2) return null
@@ -249,7 +272,9 @@ export default function OrderPage() {
                     key={r.article.articleNumber}
                     article={r.article}
                     quantity={quantities[r.article.articleNumber] || 0}
+                    stockQuantity={stockQuantities[r.article.articleNumber] || 0}
                     onQuantityChange={setQuantity}
+                    onStockQuantityChange={setStockQuantity}
                     subtitle={r.subcategory}
                   />
                 ))}
@@ -270,7 +295,9 @@ export default function OrderPage() {
                 expandedSubs={expandedSubs}
                 onToggleSub={toggleSub}
                 quantities={quantities}
+                stockQuantities={stockQuantities}
                 onQuantityChange={setQuantity}
+                onStockQuantityChange={setStockQuantity}
               />
             ))}
           </div>
@@ -372,7 +399,9 @@ function GroupAccordion({
   expandedSubs,
   onToggleSub,
   quantities,
+  stockQuantities,
   onQuantityChange,
+  onStockQuantityChange,
 }: {
   group: DisplayGroup
   expanded: boolean
@@ -380,11 +409,13 @@ function GroupAccordion({
   expandedSubs: Set<string>
   onToggleSub: (name: string) => void
   quantities: Record<string, number>
+  stockQuantities: Record<string, number>
   onQuantityChange: (articleNumber: string, qty: number) => void
+  onStockQuantityChange: (articleNumber: string, qty: number) => void
 }) {
   const totalArticles = group.subcategories.reduce((sum, s) => sum + s.articles.length, 0)
   const selectedCount = group.subcategories.reduce(
-    (sum, s) => sum + s.articles.filter(a => quantities[a.articleNumber] > 0).length,
+    (sum, s) => sum + s.articles.filter(a => (quantities[a.articleNumber] > 0) || (stockQuantities[a.articleNumber] > 0)).length,
     0
   )
 
@@ -434,7 +465,9 @@ function GroupAccordion({
                         key={article.articleNumber}
                         article={article}
                         quantity={quantities[article.articleNumber] || 0}
+                        stockQuantity={stockQuantities[article.articleNumber] || 0}
                         onQuantityChange={onQuantityChange}
+                        onStockQuantityChange={onStockQuantityChange}
                       />
                     ))}
                   </div>
@@ -448,52 +481,70 @@ function GroupAccordion({
   )
 }
 
+function QuantityControl({ value, onChange, color = 'blue' }: { value: number; onChange: (v: number) => void; color?: string }) {
+  const colors = color === 'green'
+    ? { bg: 'bg-green-100 hover:bg-green-200', text: 'text-green-700', activeBg: 'bg-green-50', border: 'focus:border-green-500' }
+    : { bg: 'bg-blue-100 hover:bg-blue-200', text: 'text-blue-700', activeBg: 'bg-blue-50', border: 'focus:border-blue-500' }
+  return (
+    <div className="flex items-center gap-0.5">
+      {value > 0 && (
+        <button onClick={() => onChange(value - 1)} className={`w-6 h-6 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs`}>−</button>
+      )}
+      <input
+        type="number" min="0" value={value || ''}
+        onChange={e => onChange(parseInt(e.target.value) || 0)}
+        className={`w-10 h-6 text-center text-xs border border-gray-300 rounded ${colors.border} outline-none text-gray-800`}
+        placeholder="0"
+      />
+      <button onClick={() => onChange(value + 1)} className={`w-6 h-6 rounded ${colors.bg} ${colors.text} font-bold text-xs`}>+</button>
+    </div>
+  )
+}
+
 function ArticleRow({
   article,
   quantity,
+  stockQuantity,
   onQuantityChange,
+  onStockQuantityChange,
   subtitle,
 }: {
   article: Article
   quantity: number
+  stockQuantity: number
   onQuantityChange: (articleNumber: string, qty: number) => void
+  onStockQuantityChange: (articleNumber: string, qty: number) => void
   subtitle?: string
 }) {
+  const hasAny = quantity > 0 || stockQuantity > 0
   return (
-    <div className={`flex items-center gap-2 py-1.5 px-2 rounded ${quantity > 0 ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-800 truncate">{article.name}</p>
-        <p className="text-xs text-gray-400">
-          {article.articleNumber}
-          {subtitle && ` • ${subtitle}`}
-        </p>
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {quantity > 0 && (
-          <button
-            onClick={() => onQuantityChange(article.articleNumber, quantity - 1)}
-            className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm"
+    <div className={`py-1.5 px-2 rounded ${hasAny ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <a
+            href={`https://shop.ingold-biwa.ch${article.url}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-800 hover:text-blue-600 hover:underline truncate block"
+            title="Im Shop ansehen"
           >
-            −
-          </button>
-        )}
-        <input
-          type="number"
-          min="0"
-          value={quantity || ''}
-          onChange={e => {
-            const val = parseInt(e.target.value) || 0
-            onQuantityChange(article.articleNumber, val)
-          }}
-          className="w-14 h-7 text-center text-sm border border-gray-300 rounded focus:border-blue-500 outline-none text-gray-800"
-          placeholder="0"
-        />
-        <button
-          onClick={() => onQuantityChange(article.articleNumber, quantity + 1)}
-          className="w-7 h-7 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-sm"
-        >
-          +
-        </button>
+            {article.name} ↗
+          </a>
+          <p className="text-xs text-gray-400">
+            {article.articleNumber}
+            {subtitle && ` • ${subtitle}`}
+          </p>
+        </div>
+        <div className="flex flex-col gap-0.5 shrink-0 items-end">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-blue-600 w-12 text-right">Pers.</span>
+            <QuantityControl value={quantity} onChange={(v) => onQuantityChange(article.articleNumber, v)} color="blue" />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-green-600 w-12 text-right">Lager</span>
+            <QuantityControl value={stockQuantity} onChange={(v) => onStockQuantityChange(article.articleNumber, v)} color="green" />
+          </div>
+        </div>
       </div>
     </div>
   )
