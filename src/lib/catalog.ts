@@ -4,6 +4,8 @@ export interface Article {
   name: string
   articleNumber: string
   url: string
+  urlId?: string
+  realArticleNumbers?: string[]
 }
 
 export interface Subcategory {
@@ -115,6 +117,8 @@ export function getGroupedCatalog(): DisplayGroup[] {
           name: a.name,
           articleNumber: a.articleNumber,
           url: a.url,
+          urlId: (a as Record<string, unknown>).urlId as string | undefined,
+          realArticleNumbers: (a as Record<string, unknown>).realArticleNumbers as string[] | undefined,
         })),
       })
     }
@@ -143,7 +147,9 @@ export function searchCatalog(query: string): { group: string; subcategory: stri
       for (const article of sub.articles) {
         if (
           article.name.toLowerCase().includes(q) ||
-          article.articleNumber.includes(q)
+          article.articleNumber.includes(q) ||
+          (article.urlId && article.urlId.includes(q)) ||
+          (article.realArticleNumbers && article.realArticleNumbers.some(nr => nr.includes(q)))
         ) {
           results.push({
             group: `${group.icon} ${group.name}`,
