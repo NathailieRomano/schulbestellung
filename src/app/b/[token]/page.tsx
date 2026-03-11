@@ -64,7 +64,7 @@ export default function OrderPage() {
         }
         const data = await res.json()
         setTeacher(data.teacher)
-        setDeadline(data.settings?.order_deadline || '')
+        setDeadline(data.settings?.deadline || data.settings?.order_deadline || '')
         setOrderStatus(data.order?.status || 'draft')
 
         // Load existing items
