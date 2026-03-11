@@ -58,6 +58,22 @@ export default function AdminPage() {
   const [showOrdered, setShowOrdered] = useState<'all' | 'open' | 'done'>('all')
   const articleUrlMap = useMemo(() => getArticleUrlMap(), [])
 
+  const [deadline, setDeadline] = useState('')
+  const [deadlineSaved, setDeadlineSaved] = useState(false)
+
+  const saveDeadline = async (val: string) => {
+    if (!adminToken) return
+    setDeadline(val)
+    setDeadlineSaved(false)
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization: adminToken },
+      body: JSON.stringify({ key: 'deadline', value: val }),
+    })
+    setDeadlineSaved(true)
+    setTimeout(() => setDeadlineSaved(false), 2000)
+  }
+
   const fetchDashboard = useCallback(async (token: string) => {
     setLoading(true)
     const res = await fetch('/api/admin/dashboard', {
@@ -67,6 +83,7 @@ export default function AdminPage() {
       const data = await res.json()
       setTeachers(data.teachers)
       setSettings(data.settings)
+      if (data.settings.deadline) setDeadline(data.settings.deadline)
     }
     setLoading(false)
   }, [])
@@ -325,8 +342,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Token actions */}
-            <div className="mb-4 flex items-center gap-3">
+            {/* Token actions + deadline */}
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               <button
                 onClick={generateAllTokens}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
@@ -340,6 +357,16 @@ export default function AdminPage() {
               >
                 PDF Anleitung herunterladen
               </a>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600 font-medium">Abgabefrist:</label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={e => saveDeadline(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm text-gray-700 focus:border-blue-500 outline-none"
+                />
+                {deadlineSaved && <span className="text-green-600 text-xs">✓ gespeichert</span>}
+              </div>
               <select
                 value={campusFilter}
                 onChange={e => setCampusFilter(e.target.value)}
@@ -396,18 +423,22 @@ export default function AdminPage() {
                               <button
                                 onClick={() => {
                                   const link = `${window.location.origin}/b/${t.token}`
+                                  const deadlineStr = deadline
+                                    ? new Date(deadline + 'T00:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' })
+                                    : '(bitte Abgabefrist im Admin setzen)'
                                   const subject = encodeURIComponent('Sammelbestellung 2026 - Dein Bestelllink')
-                                  const body = encodeURIComponent(
+                                  const mailBody = encodeURIComponent(
                                     `Liebe/r ${t.name.split(' ')[0]}\n\n` +
                                     `Hier ist dein persoenlicher Link fuer die Sammelbestellung 2026 (ingold-biwa):\n\n` +
                                     `${link}\n\n` +
                                     `Standort: ${t.campus === 'schoenau' ? 'Schoenau' : 'Zulg'}\n` +
-                                    `Bestellfrist: 3. Mai 2026\n\n` +
+                                    `Abgabefrist: ${deadlineStr}\n\n` +
+                                    `Bitte speichert eure Bestellung zwischendurch mit "Zwischenspeichern" und klickt erst auf "Bestellung absenden", wenn ihr fertig seid.\n\n` +
                                     `Im Anhang findest du eine kurze Anleitung als PDF.\n\n` +
                                     `Bei Fragen melde dich bei mir.\n\n` +
                                     `Herzliche Gruesse\nNathanael Romano`
                                   )
-                                  window.open(`mailto:${t.name}?subject=${subject}&body=${body}`, '_self')
+                                  window.open(`mailto:${t.name}?subject=${subject}&body=${mailBody}`, '_self')
                                 }}
                                 className="text-xs bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-green-700"
                               >
