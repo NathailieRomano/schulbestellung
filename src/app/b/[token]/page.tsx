@@ -124,12 +124,15 @@ export default function OrderPage() {
 
   const cartItems = useMemo(() => {
     const items: (OrderItemData & { quantity_personal: number; quantity_stock: number })[] = []
+    const seen = new Set<string>()
     for (const group of catalog) {
       for (const sub of group.subcategories) {
         for (const article of sub.articles) {
+          if (seen.has(article.articleNumber)) continue
           const qtyPersonal = quantities[article.articleNumber] || 0
           const qtyStock = stockQuantities[article.articleNumber] || 0
           if (qtyPersonal > 0 || qtyStock > 0) {
+            seen.add(article.articleNumber)
             items.push({
               article_number: article.articleNumber,
               article_name: article.name,

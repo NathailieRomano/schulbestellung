@@ -144,17 +144,20 @@ export function getGroupedCatalog(): DisplayGroup[] {
 export function searchCatalog(query: string): { group: string; subcategory: string; article: Article }[] {
   const q = query.toLowerCase()
   const results: { group: string; subcategory: string; article: Article }[] = []
+  const seen = new Set<string>()
   const groups = getGroupedCatalog()
 
   for (const group of groups) {
     for (const sub of group.subcategories) {
       for (const article of sub.articles) {
+        if (seen.has(article.articleNumber)) continue
         if (
           article.name.toLowerCase().includes(q) ||
           article.articleNumber.includes(q) ||
           (article.urlId && article.urlId.includes(q)) ||
           (article.realArticleNumbers && article.realArticleNumbers.some(nr => nr.includes(q)))
         ) {
+          seen.add(article.articleNumber)
           results.push({
             group: `${group.icon} ${group.name}`,
             subcategory: sub.name,
