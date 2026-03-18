@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [orderedArticles, setOrderedArticles] = useState<Record<string, OrderedArticle>>({})
   const [showOrdered, setShowOrdered] = useState<'all' | 'open' | 'done'>('all')
+  const [mailSent, setMailSent] = useState<Record<string, boolean>>({})
   const articleUrlMap = useMemo(() => getArticleUrlMap(), [])
 
   const [deadline, setDeadline] = useState('')
@@ -84,6 +85,14 @@ export default function AdminPage() {
       setTeachers(data.teachers)
       setSettings(data.settings)
       if (data.settings.deadline) setDeadline(data.settings.deadline)
+      // Load mail_sent status from settings
+      const sent: Record<string, boolean> = {}
+      for (const [key, val] of Object.entries(data.settings)) {
+        if (key.startsWith('mail_sent_') && val === 'true') {
+          sent[key.replace('mail_sent_', '')] = true
+        }
+      }
+      setMailSent(sent)
     }
     setLoading(false)
   }, [])
@@ -215,6 +224,17 @@ export default function AdminPage() {
         }))
       }
     }
+  }
+
+  const toggleMailSent = async (teacherId: string) => {
+    if (!adminToken) return
+    const newVal = !mailSent[teacherId]
+    setMailSent(prev => ({ ...prev, [teacherId]: newVal }))
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization: adminToken },
+      body: JSON.stringify({ key: `mail_sent_${teacherId}`, value: newVal ? 'true' : '' }),
+    })
   }
 
   const copyLink = (token: string) => {
@@ -387,12 +407,13 @@ export default function AdminPage() {
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2 hidden md:table-cell">Standort</th>
                     <th className="px-4 py-2 hidden md:table-cell">Artikel</th>
+                    <th className="px-4 py-2 text-center" title="Mail gesendet">✉️</th>
                     <th className="px-4 py-2">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTeachers.map(t => (
-                    <tr key={t.id} className="border-t hover:bg-gray-50">
+                    <tr key={t.id} className={`border-t hover:bg-gray-50 ${mailSent[t.id] ? 'bg-green-50/50' : ''}`}>
                       <td className="px-4 py-2">
                         {t.order?.status === 'submitted' ? '✅' :
                          t.order?.status === 'draft' && (t.order?.item_count || 0) > 0 ? '🟡' : '⬜'}
@@ -403,6 +424,15 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-2 text-gray-500 text-sm hidden md:table-cell">
                         {t.order?.item_count || 0}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!mailSent[t.id]}
+                          onChange={() => toggleMailSent(t.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                          title={mailSent[t.id] ? 'Mail gesendet ✓' : 'Noch nicht gesendet'}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex gap-1 flex-wrap">
@@ -423,26 +453,23 @@ export default function AdminPage() {
                               <button
                                 onClick={() => {
                                   const link = `${window.location.origin}/b/${t.token}`
-                                  const deadlineStr = deadline
-                                    ? new Date(deadline + 'T00:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' })
-                                    : '(bitte Abgabefrist im Admin setzen)'
-                                  const subject = encodeURIComponent('Sammelbestellung 2026 - Dein Bestelllink')
+                                  const anleitungLink = `${window.location.origin}/Anleitung_Sammelbestellung_2026.pdf`
+                                  const subject = encodeURIComponent('Sammelbestellung ingold-biwa 2026 — Dein persönlicher Link')
                                   const mailBody = encodeURIComponent(
-                                    `Liebe/r ${t.name.split(' ')[0]}\n\n` +
-                                    `Hier ist dein persoenlicher Link fuer die Sammelbestellung 2026 (ingold-biwa):\n\n` +
+                                    `Hallo ${t.name.split(' ')[0]}\n\n` +
+                                    `Die Sammelbestellung für ingold-biwa 2026 ist offen. Über deinen persönlichen Link kannst du deine Bestellung aufgeben:\n\n` +
                                     `${link}\n\n` +
-                                    `Standort: ${t.campus === 'schoenau' ? 'Schoenau' : 'Zulg'}\n` +
-                                    `Abgabefrist: ${deadlineStr}\n\n` +
-                                    `Bitte speichert eure Bestellung zwischendurch mit "Zwischenspeichern" und klickt erst auf "Bestellung absenden", wenn ihr fertig seid.\n\n` +
-                                    `Im Anhang findest du eine kurze Anleitung als PDF.\n\n` +
+                                    `Abgabefrist: 26. April 2026\n\n` +
+                                    `Hier findest du eine kurze Anleitung zur Bedienung:\n` +
+                                    `${anleitungLink}\n\n` +
                                     `Bei Fragen melde dich bei mir.\n\n` +
-                                    `Herzliche Gruesse\nNathanael Romano`
+                                    `Liebe Grüsse\nNathanael Romano`
                                   )
-                                  window.open(`mailto:${t.name}?subject=${subject}&body=${mailBody}`, '_self')
+                                  window.open(`mailto:?subject=${subject}&body=${mailBody}`, '_self')
                                 }}
                                 className="text-xs bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-green-700"
                               >
-                                Mail
+                                ✉️ Mail
                               </button>
                             </>
                           ) : (
