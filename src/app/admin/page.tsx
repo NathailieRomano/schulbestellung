@@ -454,6 +454,7 @@ export default function AdminPage() {
                                 onClick={() => {
                                   const link = `${window.location.origin}/b/${t.token}`
                                   const anleitungLink = `${window.location.origin}/Anleitung_Sammelbestellung_2026.pdf`
+                                  const recipient = encodeURIComponent(t.name)
                                   const subject = encodeURIComponent('Sammelbestellung ingold-biwa 2026 — Dein persönlicher Link')
                                   const mailBody = encodeURIComponent(
                                     `Hallo ${t.name.split(' ')[0]}\n\n` +
@@ -465,7 +466,7 @@ export default function AdminPage() {
                                     `Bei Fragen melde dich bei mir.\n\n` +
                                     `Liebe Grüsse\nNathanael Romano`
                                   )
-                                  window.open(`mailto:?subject=${subject}&body=${mailBody}`, '_self')
+                                  window.open(`mailto:${recipient}?subject=${subject}&body=${mailBody}`, '_self')
                                 }}
                                 className="text-xs bg-green-50 hover:bg-green-100 px-2 py-1 rounded text-green-700"
                               >
