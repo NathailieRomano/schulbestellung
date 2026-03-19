@@ -460,6 +460,7 @@ export default function AdminPage() {
                                     `Hallo ${t.name.split(' ')[0]}\n\n` +
                                     `Die Sammelbestellung für ingold-biwa 2026 ist offen. Über deinen persönlichen Link kannst du deine Bestellung aufgeben:\n\n` +
                                     `${link}\n\n` +
+                                    `(Falls der Link nicht klickbar ist, kopiere ihn und füge ihn in die Adresszeile deines Browsers ein.)\n\n` +
                                     `Abgabefrist: 26. April 2026\n\n` +
                                     `Hier findest du eine kurze Anleitung zur Bedienung:\n` +
                                     `${anleitungLink}\n\n` +
