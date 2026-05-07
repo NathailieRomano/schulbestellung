@@ -7,6 +7,20 @@ export async function POST(request: Request) {
   const body = await request.json()
   const { token, items, note, submit } = body
 
+  // Sammelbestellung 2026 ist abgeschlossen: keine Änderungen mehr an LP-Bestellungen.
+  const { data: closedSetting } = await supabase
+    .from('bestell_settings')
+    .select('value')
+    .eq('key', 'orders_closed')
+    .single()
+
+  if (closedSetting?.value === 'true') {
+    return NextResponse.json(
+      { error: 'Die Sammelbestellung 2026 ist abgeschlossen. Bestellungen können nicht mehr geändert werden.' },
+      { status: 403 }
+    )
+  }
+
   // Validate teacher
   const { data: teacher, error: teacherError } = await supabase
     .from('bestell_teachers')

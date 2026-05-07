@@ -37,6 +37,8 @@ export default function OrderPage() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState<string>('')
+  const [ordersClosed, setOrdersClosed] = useState(false)
+  const [ordersClosedMessage, setOrdersClosedMessage] = useState('')
   const [showCart, setShowCart] = useState(false)
 
   const [hasUnsaved, setHasUnsaved] = useState(false)
@@ -65,6 +67,8 @@ export default function OrderPage() {
         const data = await res.json()
         setTeacher(data.teacher)
         setDeadline(data.settings?.deadline || data.settings?.order_deadline || '')
+        setOrdersClosed(data.settings?.orders_closed === 'true')
+        setOrdersClosedMessage(data.settings?.orders_closed_message || 'Die Sammelbestellung 2026 ist abgeschlossen. Bestellungen können nicht mehr geändert werden.')
         setOrderStatus(data.order?.status || 'draft')
 
         // Load existing items
@@ -155,6 +159,10 @@ export default function OrderPage() {
   }, [searchQuery])
 
   const saveOrder = async (submit: boolean) => {
+    if (ordersClosed) {
+      alert('Die Sammelbestellung 2026 ist abgeschlossen. Bestellungen können nicht mehr geändert werden.')
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch('/api/order/save', {
@@ -259,13 +267,20 @@ export default function OrderPage() {
           </div>
           {orderStatus === 'submitted' && (
             <div className="mt-2 bg-green-500 text-white px-3 py-1 rounded text-sm">
-              ✅ Bestellung bereits eingereicht — du kannst sie noch bearbeiten
+              ✅ Bestellung bereits eingereicht
             </div>
           )}
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-4">
+        {ordersClosed && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <h2 className="font-bold text-amber-900">✅ Sammelbestellung abgeschlossen</h2>
+            <p className="mt-1 text-sm text-amber-800">{ordersClosedMessage}</p>
+          </div>
+        )}
+
         {/* Search */}
         <div className="mb-4">
           <input
@@ -295,6 +310,7 @@ export default function OrderPage() {
                     stockQuantity={stockQuantities[r.article.articleNumber] || 0}
                     onQuantityChange={setQuantity}
                     onStockQuantityChange={setStockQuantity}
+                    disabled={ordersClosed}
                     subtitle={r.subcategory}
                   />
                 ))}
@@ -318,6 +334,7 @@ export default function OrderPage() {
                 stockQuantities={stockQuantities}
                 onQuantityChange={setQuantity}
                 onStockQuantityChange={setStockQuantity}
+                disabled={ordersClosed}
               />
             ))}
           </div>
@@ -329,33 +346,40 @@ export default function OrderPage() {
           <textarea
             value={note}
             onChange={e => { setNote(e.target.value); setSaved(false); setSubmitted(false); setHasUnsaved(true) }}
+            disabled={ordersClosed}
             placeholder="Spezielle Wünsche, Anmerkungen..."
-            className="w-full px-3 py-2 rounded border border-gray-300 focus:border-blue-500 outline-none text-gray-800"
+            className="w-full px-3 py-2 rounded border border-gray-300 focus:border-blue-500 outline-none text-gray-800 disabled:bg-gray-100 disabled:text-gray-500"
             rows={3}
           />
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-6 mb-20 flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={() => saveOrder(false)}
-            disabled={saving}
-            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg disabled:opacity-50"
-          >
-            {saving ? '...' : '💾 Zwischenspeichern'}
-          </button>
-          <button
-            onClick={() => {
-              if (confirm('Bestellung definitiv absenden?')) {
-                saveOrder(true)
-              }
-            }}
-            disabled={saving || cartItems.length === 0}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50"
-          >
-            {saving ? '...' : '📤 Bestellung absenden'}
-          </button>
-        </div>
+        {ordersClosed ? (
+          <div className="mt-6 mb-20 rounded-lg bg-gray-100 px-4 py-3 text-center text-sm font-medium text-gray-600">
+            🔒 Bestellungen sind geschlossen — Speichern und Absenden ist deaktiviert.
+          </div>
+        ) : (
+          <div className="mt-6 mb-20 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => saveOrder(false)}
+              disabled={saving}
+              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg disabled:opacity-50"
+            >
+              {saving ? '...' : '💾 Zwischenspeichern'}
+            </button>
+            <button
+              onClick={() => {
+                if (confirm('Bestellung definitiv absenden?')) {
+                  saveOrder(true)
+                }
+              }}
+              disabled={saving || cartItems.length === 0}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50"
+            >
+              {saving ? '...' : '📤 Bestellung absenden'}
+            </button>
+          </div>
+        )}
 
         {saved && (
           <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg text-center z-50">
@@ -402,10 +426,12 @@ export default function OrderPage() {
                       <div className="flex items-center gap-2 ml-2">
                         <button
                           onClick={() => {
+                            if (ordersClosed) return
                             setQuantity(item.article_number, 0)
                             setStockQuantity(item.article_number, 0)
                           }}
-                          className="text-red-400 hover:text-red-600 text-sm"
+                          disabled={ordersClosed}
+                          className="text-red-400 hover:text-red-600 text-sm disabled:cursor-not-allowed disabled:text-gray-300"
                         >
                           ✕
                         </button>
@@ -432,6 +458,7 @@ function GroupAccordion({
   stockQuantities,
   onQuantityChange,
   onStockQuantityChange,
+  disabled,
 }: {
   group: DisplayGroup
   expanded: boolean
@@ -442,6 +469,7 @@ function GroupAccordion({
   stockQuantities: Record<string, number>
   onQuantityChange: (articleNumber: string, qty: number) => void
   onStockQuantityChange: (articleNumber: string, qty: number) => void
+  disabled?: boolean
 }) {
   const totalArticles = group.subcategories.reduce((sum, s) => sum + s.articles.length, 0)
   const selectedCount = group.subcategories.reduce(
@@ -498,6 +526,7 @@ function GroupAccordion({
                         stockQuantity={stockQuantities[article.articleNumber] || 0}
                         onQuantityChange={onQuantityChange}
                         onStockQuantityChange={onStockQuantityChange}
+                        disabled={disabled}
                       />
                     ))}
                   </div>
@@ -511,22 +540,23 @@ function GroupAccordion({
   )
 }
 
-function QuantityControl({ value, onChange, color = 'blue' }: { value: number; onChange: (v: number) => void; color?: string }) {
+function QuantityControl({ value, onChange, color = 'blue', disabled = false }: { value: number; onChange: (v: number) => void; color?: string; disabled?: boolean }) {
   const colors = color === 'green'
     ? { bg: 'bg-green-100 hover:bg-green-200', text: 'text-green-700', activeBg: 'bg-green-50', border: 'focus:border-green-500' }
     : { bg: 'bg-blue-100 hover:bg-blue-200', text: 'text-blue-700', activeBg: 'bg-blue-50', border: 'focus:border-blue-500' }
   return (
     <div className="flex items-center gap-0.5">
       {value > 0 && (
-        <button onClick={() => onChange(value - 1)} className={`w-6 h-6 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs`}>−</button>
+        <button disabled={disabled} onClick={() => onChange(value - 1)} className={`w-6 h-6 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs disabled:cursor-not-allowed disabled:opacity-50`}>−</button>
       )}
       <input
         type="number" min="0" value={value || ''}
+        disabled={disabled}
         onChange={e => onChange(parseInt(e.target.value) || 0)}
-        className={`w-10 h-6 text-center text-xs border border-gray-300 rounded ${colors.border} outline-none text-gray-800`}
+        className={`w-10 h-6 text-center text-xs border border-gray-300 rounded ${colors.border} outline-none text-gray-800 disabled:bg-gray-100 disabled:text-gray-500`}
         placeholder="0"
       />
-      <button onClick={() => onChange(value + 1)} className={`w-6 h-6 rounded ${colors.bg} ${colors.text} font-bold text-xs`}>+</button>
+      <button disabled={disabled} onClick={() => onChange(value + 1)} className={`w-6 h-6 rounded ${colors.bg} ${colors.text} font-bold text-xs disabled:cursor-not-allowed disabled:opacity-50`}>+</button>
     </div>
   )
 }
@@ -538,6 +568,7 @@ function ArticleRow({
   onQuantityChange,
   onStockQuantityChange,
   subtitle,
+  disabled = false,
 }: {
   article: Article
   quantity: number
@@ -545,6 +576,7 @@ function ArticleRow({
   onQuantityChange: (articleNumber: string, qty: number) => void
   onStockQuantityChange: (articleNumber: string, qty: number) => void
   subtitle?: string
+  disabled?: boolean
 }) {
   const hasAny = quantity > 0 || stockQuantity > 0
   return (
@@ -577,11 +609,11 @@ function ArticleRow({
         <div className="flex flex-col gap-0.5 shrink-0 items-end">
           <div className="flex items-center gap-1">
             <span className="text-xs text-blue-600 w-12 text-right">Pers.</span>
-            <QuantityControl value={quantity} onChange={(v) => onQuantityChange(article.articleNumber, v)} color="blue" />
+            <QuantityControl value={quantity} onChange={(v) => onQuantityChange(article.articleNumber, v)} color="blue" disabled={disabled} />
           </div>
           <div className="flex items-center gap-1">
             <span className="text-xs text-green-600 w-12 text-right">Lager</span>
-            <QuantityControl value={stockQuantity} onChange={(v) => onStockQuantityChange(article.articleNumber, v)} color="green" />
+            <QuantityControl value={stockQuantity} onChange={(v) => onStockQuantityChange(article.articleNumber, v)} color="green" disabled={disabled} />
           </div>
         </div>
       </div>

@@ -19,14 +19,28 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
   }
 
-  // Get or create order
+  // Get settings (only public ones, NOT admin sessions)
+  const { data: settings } = await supabase
+    .from('bestell_settings')
+    .select('*')
+    .not('key', 'like', 'admin_session_%')
+    .not('key', 'like', 'admin_password%')
+
+  const settingsMap: Record<string, string> = {}
+  settings?.forEach((s: { key: string; value: string }) => {
+    settingsMap[s.key] = s.value
+  })
+
+  const ordersClosed = settingsMap.orders_closed === 'true'
+
+  // Get or create order. When orders are closed, do NOT create a new empty order just because a token was opened.
   let { data: order } = await supabase
     .from('bestell_orders')
     .select('*')
     .eq('teacher_id', teacher.id)
     .single()
 
-  if (!order) {
+  if (!order && !ordersClosed) {
     const { data: newOrder } = await supabase
       .from('bestell_orders')
       .insert({ teacher_id: teacher.id, status: 'draft' })
@@ -44,18 +58,6 @@ export async function GET(
       .eq('order_id', order.id)
     items = orderItems || []
   }
-
-  // Get settings (only public ones, NOT admin sessions)
-  const { data: settings } = await supabase
-    .from('bestell_settings')
-    .select('*')
-    .not('key', 'like', 'admin_session_%')
-    .not('key', 'like', 'admin_password%')
-
-  const settingsMap: Record<string, string> = {}
-  settings?.forEach((s: { key: string; value: string }) => {
-    settingsMap[s.key] = s.value
-  })
 
   return NextResponse.json({
     teacher,

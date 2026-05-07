@@ -280,6 +280,7 @@ export default function AdminPage() {
   const zulgTeachers = teachers.filter(t => t.campus === 'zulg')
   const submittedCount = teachers.filter(t => t.order?.status === 'submitted').length
   const draftCount = teachers.filter(t => t.order?.status === 'draft' && (t.order?.item_count || 0) > 0).length
+  const ordersClosed = settings.orders_closed === 'true'
 
   const filteredTeachers = campusFilter === 'all' ? teachers : teachers.filter(t => t.campus === campusFilter)
 
@@ -325,6 +326,15 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
+        {ordersClosed && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <h2 className="font-bold text-amber-900">✅ Sammelbestellung abgeschlossen / Read-only</h2>
+            <p className="mt-1 text-sm text-amber-800">
+              LPs können keine Bestellungen mehr speichern oder absenden. Admin-Ansichten und Exporte bleiben zur Kontrolle verfügbar.
+            </p>
+          </div>
+        )}
+
         {loading && <div className="text-center text-gray-500 py-8">Laden...</div>}
 
         {/* Dashboard */}
