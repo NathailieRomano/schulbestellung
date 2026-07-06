@@ -1,27 +1,110 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --bg: #f3f7ff;
+  --panel: #ffffff;
+  --panel-border: #dbeafe;
+  --text: #172554;
+  --muted: #475569;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --success: #15803d;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 30rem),
+    radial-gradient(circle at bottom right, rgba(21, 128, 61, 0.12), transparent 26rem),
+    var(--bg);
+  color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+.archive-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+}
+
+.archive-card {
+  width: min(100%, 760px);
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(37, 99, 235, 0.16);
+  padding: clamp(2rem, 5vw, 4rem);
+}
+
+.archive-badge {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: var(--success);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+  padding: 0.45rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.archive-kicker {
+  color: var(--accent);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+h1 {
+  font-size: clamp(2.25rem, 7vw, 4.5rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.archive-lead {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  line-height: 1.65;
+  margin: 1.5rem 0 2rem;
+}
+
+.archive-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 1.5rem;
+}
+
+.archive-grid > div {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--accent-soft);
+  padding: 1rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.archive-note {
+  border-top: 1px solid var(--panel-border);
+  margin: 1.5rem 0 0;
+  padding-top: 1.5rem;
 }

@@ -1,30 +1,38 @@
 export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-50">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">📦 Schulbestellung</h1>
-        <h2 className="text-lg text-gray-600 mb-6">Oberstufenschule Steffisburg</h2>
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-left">
-          <p className="font-semibold text-amber-900">✅ Sammelbestellung 2026 abgeschlossen</p>
-          <p className="mt-1 text-sm text-amber-800">
-            Es können keine neuen Bestellungen mehr erfasst werden. Bestehende Daten bleiben zur Kontrolle sichtbar.
-          </p>
-        </div>
-        <p className="text-gray-500 mb-6">
-          Sammelbestellung 2026 bei ingold-biwa
+    <main className="archive-shell">
+      <section className="archive-card" aria-labelledby="archive-title">
+        <div className="archive-badge">Archiviert</div>
+        <p className="archive-kicker">Oberstufenschule Steffisburg</p>
+        <h1 id="archive-title">Schulbestellung Ingold/Biwa 2026 ist abgeschlossen</h1>
+        <p className="archive-lead">
+          Die Sammelbestellung wurde am 7. Mai 2026 geschlossen und ist jetzt
+          archiviert. Es können keine neuen Bestellungen mehr erfasst, geändert
+          oder administriert werden.
         </p>
-        <div className="space-y-3">
-          <p className="text-sm text-gray-400">
-            Lehrpersonen: Verwende den Link, den du vom Administrator erhalten hast.
-          </p>
-          <a
-            href="/admin"
-            className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm"
-          >
-            🔒 Admin-Bereich
-          </a>
+
+        <div className="archive-grid" aria-label="Archivstatus">
+          <div>
+            <h2>Daten gesichert</h2>
+            <p>
+              Die ursprünglichen Bestelldaten wurden vor der Archivierung
+              exportiert und lokal gesichert.
+            </p>
+          </div>
+          <div>
+            <h2>App deaktiviert</h2>
+            <p>
+              Lehrpersonen-Links, Admin-Bereich und API-Endpunkte wurden durch
+              diese statische Archivseite ersetzt.
+            </p>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <p className="archive-note">
+          Bei Rückfragen zu alten Bestellungen bitte intern auf das gesicherte
+          Bestellarchiv zurückgreifen.
+        </p>
+      </section>
+    </main>
   )
 }
